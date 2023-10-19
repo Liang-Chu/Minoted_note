@@ -1,0 +1,51 @@
+div {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+button {
+    margin: 10px;
+    padding: 5px 15px;
+    cursor: pointer;
+}
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+li {
+    padding: 5px 0;
+}
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+}
+
+button {
+    margin: 10px;
+    padding: 5px 15px;
+    cursor: pointer;
+    background-color: #333;
+    color: #fff;
+}
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    width: 300px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ... add more styles as needed ... */
