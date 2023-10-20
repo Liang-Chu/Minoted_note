@@ -2,6 +2,10 @@ const path = require('path');
 const fs = require('fs');
 const { app, BrowserWindow, ipcMain } = require('electron');
 
+let mainWindow;
+const DEFAULT_NOTES_DIR = path.join(__dirname, 'notes');
+let currentDirectory = DEFAULT_NOTES_DIR; // Global state in main process
+
 if (process.env.NODE_ENV === 'development') {
     require('electron-reload')(__dirname, {
         electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
@@ -9,12 +13,9 @@ if (process.env.NODE_ENV === 'development') {
     });
 }
 
-let mainWindow;
-const NOTES_DIR = path.join(__dirname, 'notes');
-
-// Ensure the notes directory exists
-if (!fs.existsSync(NOTES_DIR)) {
-    fs.mkdirSync(NOTES_DIR, { recursive: true });
+// Ensure the default notes directory exists
+if (!fs.existsSync(DEFAULT_NOTES_DIR)) {
+    fs.mkdirSync(DEFAULT_NOTES_DIR, { recursive: true });
 }
 
 function createWindow() {
@@ -31,17 +32,6 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
 }
 
-// Fetch all folders from NOTES_DIR
-function fetchFolders() {
-    return fs.readdirSync(NOTES_DIR).filter(file => fs.statSync(path.join(NOTES_DIR, file)).isDirectory());
-}
-
-// Send updated list of folders to renderer process
-function sendUpdatedFolders(event) {
-    const folders = fetchFolders();
-    event.reply('send-folders', folders);
-}
-
 app.on('ready', createWindow);
 
 app.on('window-all-closed', () => {
@@ -56,20 +46,29 @@ app.on('activate', () => {
     }
 });
 
-ipcMain.on('get-folders', (event) => {
-    sendUpdatedFolders(event);
+ipcMain.on('set-curr-dir', (event, directory) => {
+    if (!fs.existsSync(directory)) {
+        fs.mkdirSync(directory, { recursive: true });
+    }
+    currentDirectory = directory;
 });
 
-ipcMain.on('add-folder', (event, folderName) => {
-    const folderPath = path.join(NOTES_DIR, folderName);
+
+ipcMain.on('get-folders', (event) => {
+    const folders = fs.readdirSync(currentDirectory).filter(file => fs.statSync(path.join(currentDirectory, file)).isDirectory());
+    event.reply('send-folders', folders);
+});
+
+ipcMain.on('add-folder', (event,  folderName ) => {
+    const folderPath = path.join(currentDirectory, folderName);
     if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
     }
-    sendUpdatedFolders(event);
+    event.reply('send-folders', fs.readdirSync(currentDirectory).filter(file => fs.statSync(path.join(currentDirectory, file)).isDirectory()));
 });
 
-ipcMain.on('delete-folder', (event, folderName) => {
-    const folderPath = path.join(NOTES_DIR, folderName);
+ipcMain.on('delete-folder', (event,  folderName ) => {
+    const folderPath = path.join(currentDirectory, folderName);
     if (!fs.existsSync(folderPath)) {
         event.reply('folder-error', 'Folder does not exist.');
         return;
@@ -77,15 +76,15 @@ ipcMain.on('delete-folder', (event, folderName) => {
 
     try {
         fs.rmdirSync(folderPath, { recursive: true });
-        sendUpdatedFolders(event);
+        event.reply('send-folders', fs.readdirSync(currentDirectory).filter(file => fs.statSync(path.join(currentDirectory, file)).isDirectory()));
     } catch (error) {
         event.reply('folder-error', `Error deleting the folder: ${error.message}`);
     }
 });
 
 ipcMain.on('rename-folder', (event, { oldName, newName }) => {
-    const oldFolderPath = path.join(NOTES_DIR, oldName);
-    const newFolderPath = path.join(NOTES_DIR, newName);
+    const oldFolderPath = path.join(currentDirectory, oldName);
+    const newFolderPath = path.join(currentDirectory, newName);
 
     if (!fs.existsSync(oldFolderPath)) {
         event.reply('folder-error', 'Folder does not exist.');
@@ -98,7 +97,7 @@ ipcMain.on('rename-folder', (event, { oldName, newName }) => {
 
     try {
         fs.renameSync(oldFolderPath, newFolderPath);
-        sendUpdatedFolders(event);
+        event.reply('send-folders', fs.readdirSync(currentDirectory).filter(file => fs.statSync(path.join(currentDirectory, file)).isDirectory()));
     } catch (error) {
         event.reply('folder-error', `Error renaming the folder: ${error.message}`);
     }
