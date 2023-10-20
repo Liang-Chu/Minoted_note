@@ -8,7 +8,7 @@ import CurrentDirContext from './contexts/CurrentDirContext.js'; // Import the C
 
 
 function App() {
-  const [currDir, setCurrDir] = useState(path.join(__dirname, '../notes'));
+  const [currDir, setCurrDir] = useState(path.join(__dirname, './notes'));
 
   return (
     <CurrentDirContext.Provider value={{ currDir, setCurrDir }}>

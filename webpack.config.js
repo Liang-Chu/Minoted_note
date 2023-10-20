@@ -2,6 +2,7 @@ const path = require('path');
 const webpack = require('webpack');
 
 module.exports = {
+  target: 'electron-main', // Targeting electron main process
   entry: './src/App.js',
   output: {
     path: path.resolve(__dirname, 'dist'),

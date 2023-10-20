@@ -45,7 +45,9 @@ app.on('activate', () => {
         createWindow();
     }
 });
-
+ipcMain.on('update_currDir', (event, newStateValue) => {
+    currentDirectory = require('path').normalize(newStateValue);;
+  });
 ipcMain.on('set-curr-dir', (event, directory) => {
     if (!fs.existsSync(directory)) {
         fs.mkdirSync(directory, { recursive: true });
