@@ -1,106 +1,169 @@
-const path = require('path');
-const fs = require('fs');
-const { app, BrowserWindow, ipcMain } = require('electron');
+const path = require("path");
+const fs = require("fs");
+const { app, BrowserWindow, ipcMain } = require("electron");
 
 let mainWindow;
-const DEFAULT_NOTES_DIR = path.join(__dirname, 'notes');
+const DEFAULT_NOTES_DIR = path.normalize(path.join(__dirname, "notes"));
 let currentDirectory = DEFAULT_NOTES_DIR; // Global state in main process
 
-if (process.env.NODE_ENV === 'development') {
-    require('electron-reload')(__dirname, {
-        electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
-        hardResetMethod: 'exit'
-    });
+if (process.env.NODE_ENV === "development") {
+  require("electron-reload")(__dirname, {
+    electron: path.join(__dirname, "node_modules", ".bin", "electron"),
+    hardResetMethod: "exit",
+  });
 }
 
 // Ensure the default notes directory exists
 if (!fs.existsSync(DEFAULT_NOTES_DIR)) {
-    fs.mkdirSync(DEFAULT_NOTES_DIR, { recursive: true });
+  fs.mkdirSync(DEFAULT_NOTES_DIR, { recursive: true });
 }
 
 function createWindow() {
-    mainWindow = new BrowserWindow({
-        width: 800,
-        height: 600,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    });
-
-    mainWindow.loadFile('index.html');
-    mainWindow.webContents.openDevTools();
+  mainWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+    },
+  });
+  mainWindow.loadFile("index.html");
+  mainWindow.webContents.openDevTools();
 }
 
-app.on('ready', createWindow);
+//get contens of the current directory
+function getDirContents() {
+  const items = fs.readdirSync(currentDirectory);
+  const folders = items.filter((item) =>
+    fs.statSync(path.join(currentDirectory, item)).isDirectory()
+  );
+  const notes = items.filter((item) => item.endsWith(".md"));
+  return { folders, notes };
+}
+app.on("ready", createWindow);
 
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
 });
 
-app.on('activate', () => {
-    if (mainWindow === null) {
-        createWindow();
-    }
+app.on("activate", () => {
+  if (mainWindow === null) {
+    createWindow();
+  }
 });
-ipcMain.on('update_currDir', (event, newStateValue) => {
-    currentDirectory = require('path').normalize(newStateValue);;
-  });
-ipcMain.on('set-curr-dir', (event, directory) => {
-    if (!fs.existsSync(directory)) {
-        fs.mkdirSync(directory, { recursive: true });
-    }
-    currentDirectory = directory;
-});
-
-
-ipcMain.on('get-folders', (event) => {
-    const folders = fs.readdirSync(currentDirectory).filter(file => fs.statSync(path.join(currentDirectory, file)).isDirectory());
-    event.reply('send-folders', folders);
+//set currentDirectory with new Dir from render
+ipcMain.on("setCurrDir", (event, newDir) => {
+  if (!fs.existsSync(newDir)) {
+    //create if doesnt exist
+    fs.mkdirSync(newDir, { recursive: true });
+  }
+  currentDirectory = newDir;
 });
 
-ipcMain.on('add-folder', (event,  folderName ) => {
-    const folderPath = path.join(currentDirectory, folderName);
-    if (!fs.existsSync(folderPath)) {
-        fs.mkdirSync(folderPath, { recursive: true });
-    }
-    event.reply('send-folders', fs.readdirSync(currentDirectory).filter(file => fs.statSync(path.join(currentDirectory, file)).isDirectory()));
+ipcMain.on("getDirContents", (event) => {
+  event.reply("sendDirContents", getDirContents());
+});
+//add folder and update directory contents
+ipcMain.on("addFolder", (event, folderName) => {
+  const folderPath = path.normalize(path.join(currentDirectory, folderName));
+  //add folder
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+  }
+  event.reply("sendDirContents", getDirContents()); //send back directory contents
 });
 
-ipcMain.on('delete-folder', (event,  folderName ) => {
-    const folderPath = path.join(currentDirectory, folderName);
-    if (!fs.existsSync(folderPath)) {
-        event.reply('folder-error', 'Folder does not exist.');
-        return;
-    }
+ipcMain.on("deleteFolder", (event, targetName) => {
+  const folderPath = path.normalize(path.join(currentDirectory, targetName));
+  //check if the folder exists
+  if (!fs.existsSync(folderPath)) {
+    event.reply("folderError", "Folder does not exist.");
+    return;
+  }
 
-    try {
-        fs.rmdirSync(folderPath, { recursive: true });
-        event.reply('send-folders', fs.readdirSync(currentDirectory).filter(file => fs.statSync(path.join(currentDirectory, file)).isDirectory()));
-    } catch (error) {
-        event.reply('folder-error', `Error deleting the folder: ${error.message}`);
-    }
+  try {
+    //delete the target
+    fs.rmdirSync(folderPath, { recursive: true });
+    event.reply("sendDirContents", getDirContents()); //send back directory contents
+  } catch (error) {
+    event.reply("folderError", `Error deleting: ${error.message}`);
+  }
+});
+//reanme folder
+ipcMain.on("renameFolder", (event, { oldName, newName }) => {
+  const oldFolderPath = path.normalize(path.join(currentDirectory, oldName));
+  const newFolderPath = path.normalize(path.join(currentDirectory, newName));
+  //confirm target does exist
+  if (!fs.existsSync(oldFolderPath)) {
+    event.reply("folderError", "Folder does not exist.");
+    return;
+  }
+  //confirm new name is not occupied
+  if (fs.existsSync(newFolderPath)) {
+    event.reply("folderError", "A folder with the new name already exists.");
+    return;
+  }
+  try {
+    fs.renameSync(oldFolderPath, newFolderPath);
+    event.reply("sendDirContents", getDirContents()); //send back directory contents
+  } catch (error) {
+    event.reply("folderError", `Error renaming the folder: ${error.message}`);
+  }
 });
 
-ipcMain.on('rename-folder', (event, { oldName, newName }) => {
-    const oldFolderPath = path.join(currentDirectory, oldName);
-    const newFolderPath = path.join(currentDirectory, newName);
+//note manipulation
+ipcMain.on("addNote", (event, noteName) => {
+  const notePath = path.normalize(
+    path.join(currentDirectory, noteName + ".md")
+  );
+  if (!fs.existsSync(notePath)) {
+    fs.writeFileSync(notePath, ""); // Create a new note with an empty content
+  }
+  event.reply("sendDirContents", getDirContents()); //send back directory contents
+});
 
-    if (!fs.existsSync(oldFolderPath)) {
-        event.reply('folder-error', 'Folder does not exist.');
-        return;
-    }
-    if (fs.existsSync(newFolderPath)) {
-        event.reply('folder-error', 'A folder with the new name already exists.');
-        return;
-    }
+ipcMain.on("deleteNote", (event, noteName) => {
+  const notePath = path.normalize(
+    path.join(currentDirectory, noteName)
+  );
+  if (!fs.existsSync(notePath)) {
+    event.reply("noteError", "Note does not exist.");
+    return;
+  }
 
-    try {
-        fs.renameSync(oldFolderPath, newFolderPath);
-        event.reply('send-folders', fs.readdirSync(currentDirectory).filter(file => fs.statSync(path.join(currentDirectory, file)).isDirectory()));
-    } catch (error) {
-        event.reply('folder-error', `Error renaming the folder: ${error.message}`);
-    }
+  try {
+    fs.unlinkSync(notePath); // Delete the note
+
+    event.reply("sendDirContents", getDirContents()); //send back directory contents
+  } catch (error) {
+    event.reply("noteError", `Error deleting the note: ${error.message}`);
+  }
+});
+
+ipcMain.on("renameNote", (event, { oldName, newName }) => {
+  const oldNotePath = path.normalize(
+    path.join(currentDirectory, oldName)
+  );
+  const newNotePath = path.normalize(
+    path.join(currentDirectory, newName + ".md")
+  );
+
+  if (!fs.existsSync(oldNotePath)) {
+    event.reply("noteError", "Note does not exist.");
+    return;
+  }
+  if (fs.existsSync(newNotePath)) {
+    event.reply("noteError", "A note with the new name already exists.");
+    return;
+  }
+
+  try {
+    fs.renameSync(oldNotePath, newNotePath); // Rename the note
+
+    event.reply("sendDirContents", getDirContents()); //send back directory contents
+  } catch (error) {
+    event.reply("noteError", `Error renaming the note: ${error.message}`);
+  }
 });

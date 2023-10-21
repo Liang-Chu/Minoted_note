@@ -8,7 +8,7 @@ export default function useCurrDir() {
 
   const updateCurrDir = (newPath) => {
     setCurrDir(newPath);
-    ipcRenderer.send('update_currDir', newPath);
+    ipcRenderer.send('setCurrDir', newPath);
   };
 
   return [currDir, updateCurrDir];

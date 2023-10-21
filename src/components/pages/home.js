@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import "../../styles/style.css";
 // Import the component to display folder content
-import DisplayFolderContent from '../DisplayFolderContent';
+import DisplayFolders from '../DisplayFolders';
 // Import the context for the current directory
 import CurrentDirContext from '../../contexts/CurrentDirContext';
 
@@ -12,7 +12,7 @@ function Home() {
   return (
     <div>
       {/* Component to display folder content */}
-      <DisplayFolderContent />
+      <DisplayFolders />
     </div>
   );
 }
