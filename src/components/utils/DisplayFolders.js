@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useContext } from "react";
 import path from "path-browserify";
-import useCurrDir from "./utils/useCurrDir";
-import GetNameModal from "./modals/GetNamePrompt.js";
+import useCurrDir from "./useCurrDir";
+import GetNameModal from "../modals/GetNamePrompt.js";
 
-import RootDirContext from "../contexts/RootDirContext.js";
+import RootDirContext from "../../contexts/RootDirContext.js";
+import MarkdownEditor from '../pages/MarkdownEditor';
+import MarkdownPreview from '../pages/MarkdownPreview';
+
 const { ipcRenderer, shell } = window.require("electron");
 
 function DisplayFolders() {
@@ -15,9 +18,11 @@ function DisplayFolders() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [folderToRename, setFolderToRename] = useState(null);
   const [noteToRename, setNoteToRename] = useState(null);
+  const [markdownText, setMarkdownText] = React.useState('');
 
   const rootDir = useContext(RootDirContext); // Get the root directory
   useEffect(() => {
+    
     ipcRenderer.on("sendDirContents", (event, { folders, notes }) => {
       setFolders(folders);
       setNotes(notes); // Set the notes state variable
@@ -32,9 +37,10 @@ function DisplayFolders() {
   }, []);
   //note click (open note)
   const handleNoteClick = (note) => {
-    // Open the note with the default program
-    shell.openPath(path.join(currDir, note));
-  };
+    const notePath = path.join(currDir, note);
+    ipcRenderer.send('read-file', notePath);
+};
+
   const handleNoteCreation = (noteName) => {
     // Send a request to the main process to create a new note
     ipcRenderer.send("addNote", noteName);

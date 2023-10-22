@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import "../../styles/style.css";
 // Import the component to display folder content
-import DisplayFolders from '../DisplayFolders';
+import DisplayFolders from '../utils/DisplayFolders';
 // Import the context for the current directory
 import CurrentDirContext from '../../contexts/CurrentDirContext';
 

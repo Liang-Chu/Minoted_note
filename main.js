@@ -1,10 +1,38 @@
 const path = require("path");
 const fs = require("fs");
 const { app, BrowserWindow, ipcMain } = require("electron");
+const filePaths = new Map();
 
 let mainWindow;
 const DEFAULT_NOTES_DIR = path.normalize(path.join(__dirname, "notes"));
 let currentDirectory = DEFAULT_NOTES_DIR; // Global state in main process
+let editorWindow = null;
+function createEditorWindow(notePath) {
+  editorWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      enableRemoteModule: true,
+    },
+  });
+
+  editorWindow.loadFile("./src/layout/editor.html"); // Load the HTML file for the editor and preview
+  editorWindow.webContents.openDevTools();
+
+  // When the window's content finishes loading, read the file and send its content to the renderer process
+  editorWindow.webContents.on("did-finish-load", () => {
+    const content = fs.readFileSync(notePath, "utf-8");
+    editorWindow.webContents.send("load-content", { content, id: editorWindow.webContents.id });
+
+    // Store the file path for this renderer
+    filePaths.set(editorWindow.webContents.id, notePath);
+  });
+  editorWindow.on("closed", () => {
+    editorWindow = null;
+  });
+}
 
 if (process.env.NODE_ENV === "development") {
   require("electron-reload")(__dirname, {
@@ -125,9 +153,7 @@ ipcMain.on("addNote", (event, noteName) => {
 });
 
 ipcMain.on("deleteNote", (event, noteName) => {
-  const notePath = path.normalize(
-    path.join(currentDirectory, noteName)
-  );
+  const notePath = path.normalize(path.join(currentDirectory, noteName));
   if (!fs.existsSync(notePath)) {
     event.reply("noteError", "Note does not exist.");
     return;
@@ -143,9 +169,7 @@ ipcMain.on("deleteNote", (event, noteName) => {
 });
 
 ipcMain.on("renameNote", (event, { oldName, newName }) => {
-  const oldNotePath = path.normalize(
-    path.join(currentDirectory, oldName)
-  );
+  const oldNotePath = path.normalize(path.join(currentDirectory, oldName));
   const newNotePath = path.normalize(
     path.join(currentDirectory, newName + ".md")
   );
@@ -166,4 +190,15 @@ ipcMain.on("renameNote", (event, { oldName, newName }) => {
   } catch (error) {
     event.reply("noteError", `Error renaming the note: ${error.message}`);
   }
+});
+ipcMain.on("read-file", (event, notePath) => {
+  createEditorWindow(notePath);
+});
+
+ipcMain.on("save-file", (event, { id, content }) => {
+  // Get the file path for this renderer
+  const path = filePaths.get(id);
+
+  // Write the content to the file
+  fs.writeFileSync(path, content, "utf-8");
 });
