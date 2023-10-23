@@ -24,7 +24,10 @@ function createEditorWindow(notePath) {
   // When the window's content finishes loading, read the file and send its content to the renderer process
   editorWindow.webContents.on("did-finish-load", () => {
     const content = fs.readFileSync(notePath, "utf-8");
-    editorWindow.webContents.send("load-content", { content, id: editorWindow.webContents.id });
+    editorWindow.webContents.send("load-content", {
+      content,
+      id: editorWindow.webContents.id,
+    });
 
     // Store the file path for this renderer
     filePaths.set(editorWindow.webContents.id, notePath);
@@ -33,6 +36,36 @@ function createEditorWindow(notePath) {
     editorWindow = null;
   });
 }
+let previewWindow = null;
+
+ipcMain.on("open-preview-window", (event, content) => {
+  if (previewWindow) {
+    previewWindow.focus();
+    return;
+  }
+
+  previewWindow = new BrowserWindow({
+    // Use BrowserWindow here
+    width: 800,
+    height: 600,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      enableRemoteModule: true,
+    },
+  });
+
+  previewWindow.loadFile("./src/layout/preview.html"); // Ensure the filename is correct
+  previewWindow.webContents.openDevTools();
+
+  previewWindow.webContents.on("did-finish-load", () => {
+    previewWindow.webContents.send("load-preview-content", content);
+  });
+
+  previewWindow.on("closed", () => {
+    previewWindow = null;
+  });
+});
 
 if (process.env.NODE_ENV === "development") {
   require("electron-reload")(__dirname, {

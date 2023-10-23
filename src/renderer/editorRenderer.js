@@ -1,39 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import path from 'path';
 import ReactDOM from 'react-dom';
 const { ipcRenderer } = require('electron');
 const MarkdownEditor = require('../components/pages/MarkdownEditor').default;
 
 function EditorApp() {
     const [markdownText, setMarkdownText] = useState('');
-    const [id, setId] = useState(null); // Add this line to create a state for the id
+    const [id, setId] = useState(null);
 
-    // Use useEffect to handle event listener addition and cleanup
     useEffect(() => {
         const handleLoadContent = (event, { content, id }) => {
             console.log("Received content:", content);
             setMarkdownText(content);
-            setId(id); // Update the id state here
+            setId(id);
         };
 
         ipcRenderer.on('load-content', handleLoadContent);
 
-        // Cleanup the event listener when the component is unmounted
         return () => {
             ipcRenderer.removeListener('load-content', handleLoadContent);
         };
-    }, []); // The empty dependency array ensures this effect runs once when the component mounts
+    }, []);
 
     const handleSave = () => {
         ipcRenderer.send('save-file', { id, content: markdownText });
     };
 
+    const openPreviewWindow = () => {
+        ipcRenderer.send('open-preview-window', markdownText);
+    };
+
     return (
         <div>
-            <MarkdownEditor value={markdownText} onChange={setMarkdownText} onSave={handleSave} />
+            <MarkdownEditor 
+                value={markdownText} 
+                onChange={setMarkdownText} 
+                onSave={handleSave} 
+                onPreview={openPreviewWindow}
+            />
         </div>
     );
 }
 
-// Render the EditorApp component into the div with ID 'root'
 ReactDOM.render(<EditorApp />, document.getElementById('root'));
