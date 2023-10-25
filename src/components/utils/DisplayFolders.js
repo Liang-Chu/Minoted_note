@@ -4,8 +4,12 @@ import useCurrDir from "./useCurrDir";
 import GetNameModal from "../modals/GetNamePrompt.js";
 
 import RootDirContext from "../../contexts/RootDirContext.js";
-import MarkdownEditor from '../pages/MarkdownEditor';
-import MarkdownPreview from '../pages/MarkdownPreview';
+import MarkdownEditor from "../pages/MarkdownEditor";
+import MarkdownPreview from "../pages/MarkdownPreview";
+
+import { scanDirectory } from "./scanDirectory";
+
+import DatabaseViewer from "./DatabaseViewer";
 
 const { ipcRenderer, shell } = window.require("electron");
 
@@ -18,11 +22,12 @@ function DisplayFolders() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [folderToRename, setFolderToRename] = useState(null);
   const [noteToRename, setNoteToRename] = useState(null);
-  const [markdownText, setMarkdownText] = React.useState('');
+  const [markdownText, setMarkdownText] = React.useState("");
 
   const rootDir = useContext(RootDirContext); // Get the root directory
+  const [lastScan, setLastScan] = useState(Date.now());
+
   useEffect(() => {
-    
     ipcRenderer.on("sendDirContents", (event, { folders, notes }) => {
       setFolders(folders);
       setNotes(notes); // Set the notes state variable
@@ -38,8 +43,8 @@ function DisplayFolders() {
   //note click (open note)
   const handleNoteClick = (note) => {
     const notePath = path.join(currDir, note);
-    ipcRenderer.send('read-file', notePath);
-};
+    ipcRenderer.send("read-file", notePath);
+  };
 
   const handleNoteCreation = (noteName) => {
     // Send a request to the main process to create a new note
@@ -105,7 +110,6 @@ function DisplayFolders() {
     });
   };
 
-
   const handleFolderRename = (newName) => {
     ipcRenderer.send("renameFolder", { oldName: folderToRename, newName });
     ipcRenderer.once("sendDirContents", (event, { folders, notes }) => {
@@ -135,6 +139,12 @@ function DisplayFolders() {
     setModalAction("modal_renameFolder");
     setModalOpen(true);
   };
+
+  const handleScanDirectoryClick = () => {
+    scanDirectory(currDir);
+    setLastScan(Date.now()); // Update the lastScan state to trigger a re-render
+  };
+
   return (
     <div>
       <button
@@ -147,6 +157,7 @@ function DisplayFolders() {
 
       <button onClick={handleAddFolderClick}>Add Folder</button>
       <button onClick={handleAddNoteClick}>Add Note</button>
+      <button onClick={handleScanDirectoryClick}>Scan Directory</button>
 
       <ul>
         {folders.map((folder) => (
@@ -187,6 +198,7 @@ function DisplayFolders() {
         }}
         existingNames={folders}
       />
+      <DatabaseViewer key={lastScan} />
     </div>
   );
 }

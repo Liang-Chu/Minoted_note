@@ -1,6 +1,7 @@
 const path = require('path');
 const webpack = require('webpack');
 
+
 const mainConfig =  {
   target: 'electron-main', // Targeting electron main process
   entry: './src/App.js',
@@ -27,6 +28,7 @@ const mainConfig =  {
       "path": require.resolve("path-browserify")
     }
   }
+  
 };
 
 
