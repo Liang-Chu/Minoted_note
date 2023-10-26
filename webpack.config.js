@@ -1,93 +1,62 @@
 const path = require('path');
 const webpack = require('webpack');
 
+// Base configuration
+const baseConfig = {
+  module: {
+    rules: [
+      {
+        test: /\.(js|jsx)$/,
+        exclude: /node_modules/,
+        use: ['babel-loader']
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
+    ]
+  },
+  resolve: {
+    extensions: ['.js', '.jsx'],
+    fallback: {
+      "path": require.resolve("path-browserify")
+    }
+  },
+  watchOptions: {
+    ignored: /database/ // This will ignore any paths that include 'database'
+  }
+};
 
-const mainConfig =  {
-  target: 'electron-main', // Targeting electron main process
+// Main configuration
+const mainConfig = {
+  ...baseConfig,
+  target: 'electron-main',
   entry: './src/App.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js'
-  },
-  module: {
-    rules: [
-      {
-        test: /\.(js|jsx)$/,
-        exclude: /node_modules/,
-        use: ['babel-loader']
-      },
-      {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader']
-      }
-    ]
-  },
-  resolve: {
-    extensions: ['.js', '.jsx'],
-    fallback: {
-      "path": require.resolve("path-browserify")
-    }
   }
-  
 };
 
-
+// Editor Renderer configuration
 const editorRendererConfig = {
-  target: 'electron-renderer', // Targeting electron renderer process
+  ...baseConfig,
+  target: 'electron-renderer',
   entry: './src/renderer/editorRenderer.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'editorRenderer.bundle.js'
-  },
-  module: {
-    rules: [
-      {
-        test: /\.(js|jsx)$/,
-        exclude: /node_modules/,
-        use: ['babel-loader']
-      },
-      {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader']
-      }
-    ]
-  },
-  resolve: {
-    extensions: ['.js', '.jsx'],
-    fallback: {
-      "path": require.resolve("path-browserify")
-    }
   }
 };
 
-
-
-
-const previewRendererConfig =  {
-  target: 'electron-renderer', // Targeting electron renderer process
+// Preview Renderer configuration
+const previewRendererConfig = {
+  ...baseConfig,
+  target: 'electron-renderer',
   entry: './src/renderer/previewRenderer.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'previewRenderer.bundle.js'
-  },
-  module: {
-    rules: [
-      {
-        test: /\.(js|jsx)$/,
-        exclude: /node_modules/,
-        use: ['babel-loader']
-      },
-      {
-        test: /\.css$/,
-        use: ['style-loader', 'css-loader']
-      }
-    ]
-  },
-  resolve: {
-    extensions: ['.js', '.jsx'],
-    fallback: {
-      "path": require.resolve("path-browserify")
-    }
   }
 };
 

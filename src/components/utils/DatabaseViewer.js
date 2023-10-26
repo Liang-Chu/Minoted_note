@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fileStructureDB } from '../../data_structures/direct_db';
+import { fileStructureDB } from '../../data_structures/notebook_structure_db';
 
 function DatabaseViewer() {
     const [data, setData] = useState([]);

@@ -1,17 +1,43 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import "../../styles/style.css";
-// Import the component to display folder content
 import DisplayFolders from '../utils/DisplayFolders';
-// Import the context for the current directory
 import CurrentDirContext from '../../contexts/CurrentDirContext';
+import RootDirContext from '../../contexts/RootDirContext';
+import GetNamePrompt from '../modals/GetNamePrompt';
+import fs from 'fs'; // Import Node.js File System module
 
 function Home() {
   const { currDir } = useContext(CurrentDirContext);
-  console.log("Current directory:", currDir);  // Log the current directory
+  const rootDir = useContext(RootDirContext);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [existingNotebooks, setExistingNotebooks] = useState([]);
+
+  console.log("Current directory:", currDir);
+
+  // Function to handle the creation of a new notebook
+  const createNotebook = (notebookName) => {
+    const notebookPath = `${rootDir}/${notebookName}`;
+    fs.mkdir(notebookPath, (err) => {
+      if (err) {
+        console.error("Error creating notebook:", err);
+      } else {
+        console.log("Notebook created:", notebookName);
+        // Update the existing notebooks list
+        setExistingNotebooks([...existingNotebooks, notebookName]);
+      }
+    });
+    setIsModalOpen(false); // Close the modal
+  };
 
   return (
     <div>
-      {/* Component to display folder content */}
+      <button onClick={() => setIsModalOpen(true)}>Create Notebook</button>
+      <GetNamePrompt
+        isOpen={isModalOpen}
+        onSubmit={createNotebook}
+        onClose={() => setIsModalOpen(false)}
+        existingNames={existingNotebooks}
+      />
       <DisplayFolders />
     </div>
   );

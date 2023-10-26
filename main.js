@@ -71,6 +71,7 @@ if (process.env.NODE_ENV === "development") {
   require("electron-reload")(__dirname, {
     electron: path.join(__dirname, "node_modules", ".bin", "electron"),
     hardResetMethod: "exit",
+    ignored: /node_modules|[\/\\]\.|database/, // Ignoring node_modules, hidden files/directories, and the database folder at the root
   });
 }
 
