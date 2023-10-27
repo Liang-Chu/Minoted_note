@@ -1,23 +1,23 @@
 import { useContext } from "react";
 import { v4 as uuidv4 } from "uuid";
 import path from "path"; // Import the path module
-import { NotebookContext } from "../contexts/NotebookContext";
+import NotebookContext from "../contexts/NotebookContext";
 import {
   initFileStructureDB,
   addFileStructureEntry,
   removeFileStructureEntry,
   updateFileStructureEntry,
   findFileStructureEntry,
-} from "./notebook_structure_db";
+} from "../data_structures/notebook_structure_db";
 import {
   initIdPathDB,
   addIdPathMapping,
   removeIdPathMapping,
   findIdPathMapping,
-} from "./notebook_id";
+} from "../data_structures/notebook_id_db";
 
-export const useNotebookDB = () => {
-  const { notebookName } = useContext(NotebookContext);
+export const useNotebookDB = (notebookName) => {
+ // const {notebookName} = useContext(NotebookContext);
 
   // Initialize databases
   const idPathDB = initIdPathDB(notebookName);

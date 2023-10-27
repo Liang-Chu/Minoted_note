@@ -1,16 +1,18 @@
-//NotebookProvider.js
+
+
+// NotebookProvider.js
 
 import React, { useState } from 'react';
 import NotebookContext from './NotebookContext';
 
-const NotebookProvider = ({ children }) => {
-  const [notebookName, setNotebookName] = useState('');
+function CurrentDirProvider({ children }) {
+  const [currNotebook, setcurrNotebook] = useState('');
 
   return (
-    <NotebookContext.Provider value={{ notebookName, setNotebookName }}>
+    <NotebookContext.Provider value={{ currNotebook, setcurrNotebook }}>
       {children}
     </NotebookContext.Provider>
   );
-};
+}
 
 export default NotebookProvider;

@@ -1,10 +1,11 @@
-// src/contexts/NotebookContext.js
 
+
+// NotebookContext.js
 import React from 'react';
 
 const NotebookContext = React.createContext({
-  notebookName: '', // Default value
-  setNotebookName: () => {} // Placeholder function
+  CurrNotebook: '',
+  setNotebook: () => {}
 });
 
 export default NotebookContext;

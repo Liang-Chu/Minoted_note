@@ -7,7 +7,8 @@ import RootDirContext from "../../contexts/RootDirContext.js";
 import MarkdownEditor from "../pages/MarkdownEditor";
 import MarkdownPreview from "../pages/MarkdownPreview";
 
-import { scanDirectory } from "./scanDirectory";
+import useScanDirectory from "../../hooks/useScanDirectory";
+import NotebookContext from '../../contexts/NotebookContext';
 
 import DatabaseViewer from "./DatabaseViewer";
 
@@ -19,14 +20,14 @@ function DisplayFolders() {
   const [notes, setNotes] = useState([]); // states for notes
   const [modalAction, setModalAction] = useState(null); // can be "addFolder", "addNote", "renameFolder", etc.
 
+  const { currNotebook } = useContext(NotebookContext);
+  const scanDirectory = useScanDirectory(currNotebook);
   const [isModalOpen, setModalOpen] = useState(false);
   const [folderToRename, setFolderToRename] = useState(null);
   const [noteToRename, setNoteToRename] = useState(null);
   const [markdownText, setMarkdownText] = React.useState("");
 
   const rootDir = useContext(RootDirContext); // Get the root directory
-  const [lastScan, setLastScan] = useState(Date.now());
-
   useEffect(() => {
     ipcRenderer.on("sendDirContents", (event, { folders, notes }) => {
       setFolders(folders);
@@ -141,8 +142,9 @@ function DisplayFolders() {
   };
 
   const handleScanDirectoryClick = () => {
-    scanDirectory(currDir);
-    setLastScan(Date.now()); // Update the lastScan state to trigger a re-render
+    if (currDir) {
+      scanDirectory(currDir, null);
+    }
   };
 
   return (
@@ -198,7 +200,6 @@ function DisplayFolders() {
         }}
         existingNames={folders}
       />
-      <DatabaseViewer key={lastScan} />
     </div>
   );
 }

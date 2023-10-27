@@ -2,23 +2,26 @@
 import React, { useState } from "react";
 import path from "path";
 import ReactDOM from "react-dom";
-import Home from "./components/pages/Home.js"; // Import the Home component
-import CurrentDirContext from "./contexts/CurrentDirContext.js"; // Import the CurrentDirContext component
-import RootDirContext from "./contexts/RootDirContext.js"; // Import the RootDirContext component
-import NotebookProvider from './contexts/NotebookProvider';
+import Home from "./components/pages/Home.js";
+import CurrentDirContext from "./contexts/CurrentDirContext.js";
+import RootDirContext from "./contexts/RootDirContext.js";
+import NotebookContext from "./contexts/NotebookContext.js";
 
 const { ipcRenderer } = window.require("electron");
 
 function App() {
   const [currDir, setCurrDir] = useState(path.join(__dirname, "./notes"));
-  const rootDir = path.join(__dirname, "./notes"); // Set the root path for notes
+  const rootDir = path.join(__dirname, "./notes");
+  const [currNotebook, setcurrNotebook] = useState("1f");
 
   return (
     <RootDirContext.Provider value={rootDir}>
       <CurrentDirContext.Provider value={{ currDir, setCurrDir }}>
-        <NotebookProvider>
+        <NotebookContext.Provider value={{ currNotebook, setcurrNotebook }}>
+          {" "}
+          {/* Pass "1f" as initial value */}
           <Home />
-        </NotebookProvider>
+        </NotebookContext.Provider>
       </CurrentDirContext.Provider>
     </RootDirContext.Provider>
   );

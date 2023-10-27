@@ -1,12 +1,22 @@
 const Datastore = require('nedb');
 const path = require('path');
+const fs = require('fs');
+
+// Function to ensure the database directory exists
+const ensureDatabaseDirectoryExists = (directoryPath) => {
+  if (!fs.existsSync(directoryPath)) {
+    fs.mkdirSync(directoryPath, { recursive: true });
+  }
+};
 
 // Function to initialize the ID-Path mapping database
 const initIdPathDB = (notebookName) => {
-  const dbFilename = `${notebookName}_id.db`;
-  return new Datastore({ filename: path.join(__dirname, 'database', dbFilename), autoload: true });
-};
+  const dbDirectory = path.join(__dirname, 'database');
+  ensureDatabaseDirectoryExists(dbDirectory); // Ensure the directory exists
 
+  const dbFilename = `${notebookName}_id.db`;
+  return new Datastore({ filename: path.join(dbDirectory, dbFilename), autoload: true });
+};
 // Utility function to add an ID-Path mapping
 const addIdPathMapping = (db, id, path) => {
   return new Promise((resolve, reject) => {

@@ -1,10 +1,21 @@
 const Datastore = require('nedb');
 const path = require('path');
+const fs = require('fs');
+
+// Function to ensure the database directory exists
+const ensureDatabaseDirectoryExists = (directoryPath) => {
+  if (!fs.existsSync(directoryPath)) {
+    fs.mkdirSync(directoryPath, { recursive: true });
+  }
+};
 
 // Function to initialize the file structure database
 const initFileStructureDB = (notebookName) => {
+  const dbDirectory = path.join(__dirname, 'database');
+  ensureDatabaseDirectoryExists(dbDirectory); // Ensure the directory exists
+
   const dbFilename = `${notebookName}_structure.db`;
-  return new Datastore({ filename: path.join(__dirname, 'database', dbFilename), autoload: true });
+  return new Datastore({ filename: path.join(dbDirectory, dbFilename), autoload: true });
 };
 
 // Utility function to add an entry to the file structure database
