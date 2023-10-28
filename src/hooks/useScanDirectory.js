@@ -4,32 +4,53 @@ import path from 'path';
 import { useNotebookDB } from './useNotebookDB';
 
 const useScanDirectory = (notebookName) => {
-  const { addEntry } = useNotebookDB(notebookName);
+  const { addEntry, findEntryById } = useNotebookDB(notebookName);
 
-  const scanDirectory = (directory, parentPath) => {
-    fs.readdir(directory, (err, items) => {
-      if (err) throw err;
+  const scanDirectory = async (directory, parentPath) => {
+    const items = fs.readdirSync(directory);
 
-      items.forEach(item => {
-        const itemPath = path.join(directory, item);
+    for (const item of items) {
+      const itemPath = path.join(directory, item);
+      const stats = fs.statSync(itemPath);
 
-        fs.stat(itemPath, (err, stats) => {
-          if (err) throw err;
+      const type = stats.isDirectory() ? 1 : 0;
+      const parents = parentPath ? [await findEntryIdByPath(parentPath)] : [];
+      const children = stats.isDirectory() ? await getChildrenIds(itemPath) : [];
 
-          if (stats.isDirectory()) {
-            scanDirectory(itemPath, directory);
-          }
+      addEntry(itemPath, type, parents, children)
+        .then(newDoc => console.log('Added to database:', newDoc))
+        .catch(err => console.error('Error adding entry:', err));
 
-          const type = stats.isDirectory() ? 1 : 0;
-          const parents = parentPath ? [parentPath] : [];
-          const children = stats.isDirectory() ? fs.readdirSync(itemPath).map(child => path.join(itemPath, child)) : [];
+      if (stats.isDirectory()) {
+        await scanDirectory(itemPath, directory);
+      }
+    }
+  };
 
-          addEntry(itemPath, type, parents, children)
-            .then(newDoc => console.log('Added to database:', newDoc))
-            .catch(err => console.error('Error adding entry:', err));
-        });
-      });
-    });
+  const findEntryIdByPath = async (itemPath) => {
+    const entry = await findEntryById(itemPath);
+    return entry ? entry.id : null;
+  };
+
+  const getChildrenIds = async (directory) => {
+    const items = fs.readdirSync(directory);
+    const childrenIds = [];
+
+    for (const item of items) {
+      const itemPath = path.join(directory, item);
+      const childEntry = await findEntryById(itemPath);
+      if (childEntry) {
+        childrenIds.push(childEntry.id);
+      } else {
+        // If the child is not in the database, add it
+        const stats = fs.statSync(itemPath);
+        const type = stats.isDirectory() ? 1 : 0;
+        const newChild = await addEntry(itemPath, type, [], []);
+        childrenIds.push(newChild.id);
+      }
+    }
+
+    return childrenIds;
   };
 
   return scanDirectory;

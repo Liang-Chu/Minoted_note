@@ -1,7 +1,6 @@
 import { useContext } from "react";
 import { v4 as uuidv4 } from "uuid";
 import path from "path"; // Import the path module
-import NotebookContext from "../contexts/NotebookContext";
 import {
   initFileStructureDB,
   addFileStructureEntry,
@@ -17,7 +16,7 @@ import {
 } from "../data_structures/notebook_id_db";
 
 export const useNotebookDB = (notebookName) => {
- // const {notebookName} = useContext(NotebookContext);
+  // const {notebookName} = useContext(NotebookContext);
 
   // Initialize databases
   const idPathDB = initIdPathDB(notebookName);
@@ -53,27 +52,55 @@ export const useNotebookDB = (notebookName) => {
         });
     });
   };
+  /**
+   * Function: findAllEntries
+   *
+   * Description:
+   * This function retrieves and combines data from two databases: idPathDB and fileStructureDB.
+   * It does not take any explicit input parameters as it is designed to retrieve all entries from both databases.
+   *
+   * Input:
+   * - None (It operates on the predefined databases idPathDB and fileStructureDB)
+   *
+   * Output:
+   * - Returns a Promise that resolves to an array of combined entries.
+   * - Each entry in the array is an object with the following properties:
+   *   - id: The ID from the fileStructureDB entry.
+   *   - path: The path from the corresponding idPathDB entry, or null if no corresponding entry is found.
+   *   - type: The type from the fileStructureDB entry.
+   *   - parents: The parents from the fileStructureDB entry.
+   *   - children: The children from the fileStructureDB entry.
+   * - If an error occurs during data retrieval from either database, the Promise is rejected with the encountered error.
+   */
+
   const findAllEntries = () => {
+    // Return a new Promise to handle asynchronous operations.
     return new Promise((resolve, reject) => {
-      // Retrieve all entries from the idPathDB
+      // Retrieve all entries from the idPathDB database.
       idPathDB.find({}, (err, idPathEntries) => {
+        // If there's an error during retrieval, reject the promise with the error.
         if (err) {
           reject(err);
           return;
         }
 
-        // Retrieve all entries from the fileStructureDB
+        // Retrieve all entries from the fileStructureDB database.
         fileStructureDB.find({}, (err, fileStructureEntries) => {
+          // If there's an error during retrieval, reject the promise with the error.
           if (err) {
             reject(err);
             return;
           }
 
-          // Combine the data from both databases
+          // Combine the data from both databases.
           const combinedEntries = fileStructureEntries.map((fileEntry) => {
+            // Find the corresponding entry from idPathDB based on the id.
             const idPathEntry = idPathEntries.find(
               (idEntry) => idEntry.id === fileEntry.id
             );
+
+            // Return a new object combining data from both entries.
+            // If no corresponding idPathEntry is found, path is set to null.
             return {
               id: fileEntry.id,
               path: idPathEntry ? idPathEntry.path : null,
@@ -83,11 +110,13 @@ export const useNotebookDB = (notebookName) => {
             };
           });
 
+          // Resolve the promise with the combined entries.
           resolve(combinedEntries);
         });
       });
     });
   };
+  //delete entry by path. And remove subfiles if this is the only parent of them.
   const deleteEntryByPath = (pathToDelete) => {
     const normalizedPath = path.normalize(pathToDelete);
     return new Promise((resolve, reject) => {
@@ -144,6 +173,32 @@ export const useNotebookDB = (notebookName) => {
         .catch(reject);
     });
   };
-
-  return { addEntry, deleteEntryByPath, findAllEntries };
+  const findEntryById = (id) => {
+    return new Promise((resolve, reject) => {
+      findFileStructureEntry(fileStructureDB, id)
+        .then((fileStructureEntry) => {
+          if (!fileStructureEntry) {
+            reject(new Error("File structure entry not found."));
+            return;
+          }
+          findIdPathMapping(idPathDB, id)
+            .then((idPathEntry) => {
+              if (!idPathEntry) {
+                reject(new Error("ID-Path mapping not found."));
+                return;
+              }
+              resolve({
+                id: id,
+                path: idPathEntry.path,
+                type: fileStructureEntry.type,
+                parents: fileStructureEntry.parents,
+                children: fileStructureEntry.children,
+              });
+            })
+            .catch(reject);
+        })
+        .catch(reject);
+    });
+  };
+  return { addEntry, deleteEntryByPath, findAllEntries, findEntryById };
 };
