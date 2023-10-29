@@ -1,64 +1,93 @@
-const Datastore = require('nedb');
-const path = require('path');
-const fs = require('fs');
+//src\data_structure_notebook_id_db.js
+//file path and id mapping
+//id: file type+unique id
+//path: file path
+const Datastore = require("nedb");
+const path = require("path");
+const fs = require("fs");
 
-// Function to ensure the database directory exists
-const ensureDatabaseDirectoryExists = (directoryPath) => {
-  if (!fs.existsSync(directoryPath)) {
-    fs.mkdirSync(directoryPath, { recursive: true });
+class notebook_id_db {
+  constructor(notebookName = "default_notebook") {
+    // Open database if doesn't exist
+    const dbDirectory = path.join(__dirname, "database");
+    const dbFilename = `${notebookName}_id.db`;
+    this.db = new Datastore({
+      filename: path.join(dbDirectory, dbFilename),
+      autoload: true,
+    });
   }
-};
 
-// Function to initialize the ID-Path mapping database
-const initIdPathDB = (notebookName) => {
-  const dbDirectory = path.join(__dirname, 'database');
-  ensureDatabaseDirectoryExists(dbDirectory); // Ensure the directory exists
-
-  const dbFilename = `${notebookName}_id.db`;
-  return new Datastore({ filename: path.join(dbDirectory, dbFilename), autoload: true });
-};
-// Utility function to add an ID-Path mapping
-const addIdPathMapping = (db, id, path) => {
-  return new Promise((resolve, reject) => {
-    db.insert({ id, path }, (err, newDoc) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(newDoc);
-      }
+  // Find a document in the database
+  find(query) {
+    return new Promise((resolve, reject) => {
+      this.db.find(query, (err, docs) => {
+        if (err) reject(err);
+        resolve(docs);
+      });
     });
-  });
-};
+  }
 
-// Utility function to remove an ID-Path mapping
-const removeIdPathMapping = (db, id) => {
-  return new Promise((resolve, reject) => {
-    db.remove({ id }, {}, (err, numRemoved) => {
-      if (err) {
-        reject(err);
+  // Insert a new map into the database
+  insert(path, type) {
+    return new Promise((resolve, reject) => {
+      // Check if the path already exists in the database
+      this.find({ path: path }).then((docs) => {
+        if (docs.length > 0) {
+          // If the path already exists, display a message and return the existing id
+          console.log("Data already exists");
+          resolve(docs[0]._id);
+        } else {
+          // If the path doesn't exist, generate a new id
+          let id = type + Date.now().toString(36);
+          // Insert the new document into the database
+          this.db.insert({ _id: id, path: path }, (err, newDoc) => {
+            if (err) reject(err);
+            // Return the newly generated id
+            resolve(newDoc._id);
+          });
+        }
+      });
+    });
+  }
+  // Delete a document from the database by id or path
+  delete(query) {
+    return new Promise((resolve, reject) => {
+      let condition;
+      if (query.startsWith("n") || query.startsWith("d")) {
+        // If the query starts with 'n' or 'd', assume it's an id
+        condition = { _id: query };
       } else {
+        // Otherwise, assume it's a path
+        condition = { path: query };
+      }
+      this.db.remove(condition, {}, (err, numRemoved) => {
+        if (err) reject(err);
         resolve(numRemoved);
-      }
+      });
     });
-  });
-};
+  }
 
-// Utility function to find an ID-Path mapping by path
-const findIdPathMapping = (db, path) => {
-  return new Promise((resolve, reject) => {
-    db.findOne({ path }, (err, doc) => {
-      if (err) {
-        reject(err);
+  // Update a document's path in the database by id or path
+  updatePath(query, newPath) {
+    return new Promise((resolve, reject) => {
+      let condition;
+      if (query.startsWith("n") || query.startsWith("d")) {
+        // If the query starts with 'n' or 'd', assume it's an id
+        condition = { _id: query };
       } else {
-        resolve(doc);
+        // Otherwise, assume it's a path
+        condition = { path: query };
       }
+      this.db.update(
+        condition,
+        { $set: { path: newPath } },
+        {},
+        (err, numReplaced) => {
+          if (err) reject(err);
+          resolve(numReplaced);
+        }
+      );
     });
-  });
-};
-
-module.exports = {
-  initIdPathDB,
-  addIdPathMapping,
-  removeIdPathMapping,
-  findIdPathMapping
-};
+  }
+}
+module.exports = notebook_id_db;
