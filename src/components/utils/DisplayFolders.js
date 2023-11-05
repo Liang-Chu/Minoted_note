@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import path from "path-browserify";
 import useCurrDir from "./useCurrDir";
-import GetNameModal from "../modals/GetNamePrompt.js";
+import GetNameModal from "../modals/NamePrompts.js";
 
 import RootDirContext from "../../contexts/RootDirContext.js";
 import MarkdownEditor from "../pages/MarkdownEditor";

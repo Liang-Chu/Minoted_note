@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-function GetNamePrompt({ isOpen, onSubmit, onClose, existingNames }) {
+function NamePrompts({ isOpen, onSubmit, onClose, existingNames }) {
     const [name, setName] = useState('');
     const [error, setError] = useState(false);
     const inputRef = useRef(null);
@@ -53,4 +53,4 @@ function GetNamePrompt({ isOpen, onSubmit, onClose, existingNames }) {
     );
 }
 
-export default GetNamePrompt;
+export default NamePrompts;
