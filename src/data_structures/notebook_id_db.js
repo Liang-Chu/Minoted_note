@@ -5,15 +5,37 @@
 const Datastore = require("nedb");
 const path = require("path");
 const fs = require("fs");
+const { ipcRenderer } = require("electron");
 
+const { v4: uuidv4 } = require("uuid"); // Import the UUID library
 class notebook_id_db {
   constructor(notebookName = "default_notebook") {
-    // Open database if doesn't exist
-    const dbDirectory = path.join(__dirname, "../../database", notebookName);
+    // Define the directory where the database should be stored
+    const dbDirectory = path.join(__dirname, "/database", notebookName);
+
+    // Send a message to the main process to ensure the directory exists
+    ipcRenderer.send("ensure-folder", dbDirectory);
+
+    // Define the filename for the database
     const dbFilename = `id.db`;
+
+    // Initialize the database with the filename
+    // Note: The database will not be loaded until the main process confirms the directory exists
     this.db = new Datastore({
       filename: path.join(dbDirectory, dbFilename),
-      autoload: true,
+      autoload: false, // Set autoload to false initially
+    });
+
+    // Listen for the main process to confirm the directory is ready
+    ipcRenderer.on("folder-ready", (event, success) => {
+      if (success) {
+        // If the directory is ready, load the database
+        this.db.filename = path.join(dbDirectory, "id.db");
+        this.db.loadDatabase();
+      } else {
+        // Handle the error scenario, perhaps by notifying the user or logging
+        console.error("Failed to ensure database directory exists.");
+      }
     });
   }
 
@@ -42,27 +64,35 @@ class notebook_id_db {
    */
   insert(path) {
     return new Promise((resolve, reject) => {
+      if (!path) {
+        resolve();
+        return;
+      }
       // Check if the path already exists in the database
-      this.find({ path: path }).then((docs) => {
-        if (docs.length > 0) {
-          // If the path already exists, display a message and return the existing id
-          console.log("Data already exists");
-          resolve(docs[0]._id);
-        } else {
-          // Determine the type based on the path
-          let type = path.endsWith(".md") ? 1 : 0;
+      this.find({ path: path })
+        .then((docs) => {
+          if (docs.length > 0) {
+            // If the path already exists, return the existing id
+            resolve(docs[0]._id);
+          } else {
+            // Determine the type based on the path
+            let type = path.endsWith(".md") ? "1" : "0";
 
-          // Generate a new id
-          let id = type + Date.now().toString(36);
-
-          // Insert the new document into the database
-          this.db.insert({ _id: id, path: path }, (err, newDoc) => {
-            if (err) reject(err);
-            // Return the newly generated id
-            resolve(newDoc._id);
-          });
-        }
-      });
+            // Generate a new id using UUID
+            let id = type + uuidv4();
+            console.log("id:", id, "path:", path);
+            // Insert the new document into the database
+            this.db.insert({ _id: id, path: path }, (err, newDoc) => {
+              if (err) {
+                reject(err);
+              } else {
+                // Return the newly generated id
+                resolve(newDoc._id);
+              }
+            });
+          }
+        })
+        .catch(reject); // Make sure to catch any errors from `find` method
     });
   }
 

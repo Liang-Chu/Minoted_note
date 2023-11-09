@@ -1,59 +1,39 @@
-// useScanDirectory.js
-import fs from 'fs';
-import path from 'path';
-import { useNotebookDB } from './useNotebookDB';
+import { useState } from "react";
+import { ipcRenderer } from "electron";
+import { useNotebookDB } from "./useNotebookDB";
 
-const useScanDirectory = (notebookName) => {
-  const { addEntry, findEntryById } = useNotebookDB(notebookName);
+const useScanDirectory = () => {
+  const [directoryContents, setDirectoryContents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const { addList } = useNotebookDB("1f"); // Replace "1f" with the actual notebook identifier
 
-  const scanDirectory = async (directory, parentPath) => {
-    const items = fs.readdirSync(directory);
+  const scanDirectory = async (directoryPath) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const paths = await ipcRenderer.invoke("scan-directory", directoryPath);
+      console.log("Scanned paths:", paths);
 
-    for (const item of items) {
-      const itemPath = path.join(directory, item);
-      const stats = fs.statSync(itemPath);
+      // Map the paths to the format expected by addList
+      const entriesToAdd = paths.map((filePath) => ({
+        relativePath: filePath, // Assuming the paths returned are relative
+        parents: [], // Leave parents empty as per your instruction
+        children: [] // Leave children empty as per your instruction
+      }));
 
-      const type = stats.isDirectory() ? 1 : 0;
-      const parents = parentPath ? [await findEntryIdByPath(parentPath)] : [];
-      const children = stats.isDirectory() ? await getChildrenIds(itemPath) : [];
+      // Use addList to add all entries
+      await addList(entriesToAdd);
 
-      addEntry(itemPath, type, parents, children)
-        .then(newDoc => console.log('Added to database:', newDoc))
-        .catch(err => console.error('Error adding entry:', err));
-
-      if (stats.isDirectory()) {
-        await scanDirectory(itemPath, directory);
-      }
+    } catch (error) {
+      console.error("Error scanning dir:", error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const findEntryIdByPath = async (itemPath) => {
-    const entry = await findEntryById(itemPath);
-    return entry ? entry.id : null;
-  };
-
-  const getChildrenIds = async (directory) => {
-    const items = fs.readdirSync(directory);
-    const childrenIds = [];
-
-    for (const item of items) {
-      const itemPath = path.join(directory, item);
-      const childEntry = await findEntryById(itemPath);
-      if (childEntry) {
-        childrenIds.push(childEntry.id);
-      } else {
-        // If the child is not in the database, add it
-        const stats = fs.statSync(itemPath);
-        const type = stats.isDirectory() ? 1 : 0;
-        const newChild = await addEntry(itemPath, type, [], []);
-        childrenIds.push(newChild.id);
-      }
-    }
-
-    return childrenIds;
-  };
-
-  return scanDirectory;
+  return { directoryContents, loading, error, scanDirectory };
 };
 
 export default useScanDirectory;

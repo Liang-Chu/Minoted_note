@@ -1,57 +1,27 @@
 import { useContext } from "react";
 import { v4 as uuidv4 } from "uuid";
 import path from "path"; // Import the path module
-import {
-  initFileStructureDB,
-  addFileStructureEntry,
-  removeFileStructureEntry,
-  updateFileStructureEntry,
-  findFileStructureEntry,
-} from "../data_structures/notebook_structure_db";
-import {
-  initIdPathDB,
-  addIdPathMapping,
-  removeIdPathMapping,
-  findIdPathMapping,
-} from "../data_structures/notebook_id_db";
+import NotebookStructureDb from "../data_structures/notebook_structure_db"; // Import the notebook_id_db class
+import NotebookIdDb from "../data_structures/notebook_id_db"; // Import the notebook_id_db class
+
 
 export const useNotebookDB = (notebookName) => {
   // const {notebookName} = useContext(NotebookContext);
 
   // Initialize databases
-  const idPathDB = initIdPathDB(notebookName);
-  const fileStructureDB = initFileStructureDB(notebookName);
+  const idPathDB = new NotebookIdDb(notebookName); // Use the new keyword to call the constructor
+  const fileStructureDB = new NotebookStructureDb(notebookName); // Use the new keyword to call the constructor
 
-  const addEntry = (relativePath, type, parents, children) => {
+
+  const addEntry = (path, parent, children) => {
     return new Promise((resolve, reject) => {
-      if (type === undefined || !relativePath) {
-        reject(new Error("Type and path are required to add an entry."));
-        return;
-      }
-
-      const normalizedPath = path.normalize(relativePath);
-      const entryId = uuidv4(); // Generate a unique ID for the entry
-
-      // Add entry to idPathDB
-      addIdPathMapping(idPathDB, entryId, normalizedPath)
-        .then(() => {
-          // Add entry to fileStructureDB
-          return addFileStructureEntry(
-            fileStructureDB,
-            entryId,
-            type,
-            parents,
-            children
-          );
-        })
-        .then((newDoc) => {
-          resolve(newDoc);
-        })
-        .catch((err) => {
-          reject(err);
-        });
+      // Call the insert function directly with the provided path, parent, and children
+      fileStructureDB.insert(path, parent, children)
+        .then(resolve)
+        .catch(reject);
     });
   };
+
   /**
    * Function: findAllEntries
    *
@@ -200,5 +170,16 @@ export const useNotebookDB = (notebookName) => {
         .catch(reject);
     });
   };
-  return { addEntry, deleteEntryByPath, findAllEntries, findEntryById };
+  const addList = (entries) => {
+    // Map each entry to a promise that resolves when the entry is added
+    const addPromises = entries.map((entry) => {
+      const { relativePath, parents, children } = entry;
+      return addEntry(relativePath, parents, children);
+    });
+
+    // Use Promise.all to wait for all add operations to complete
+    return Promise.all(addPromises);
+  };
+
+  return { addEntry, deleteEntryByPath, findAllEntries, findEntryById ,addList};
 };

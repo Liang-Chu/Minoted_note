@@ -236,3 +236,33 @@ ipcMain.on("save-file", (event, { id, content }) => {
   // Write the content to the file
   fs.writeFileSync(path, content, "utf-8");
 });
+
+ipcMain.handle("scan-directory", async (event, directoryPath) => {
+  
+  try {
+    const items = await fs.promises.readdir(directoryPath);
+    // Map over items and create full paths
+    const paths = items.map((item) => path.join(directoryPath, item));
+    return paths; // This will be an array of full paths
+  } catch (error) {
+    console.error("Error scanning directory:", error);
+    throw error; // This will be caught as a rejection in the renderer process
+  }
+});
+ipcMain.on("ensure-folder", (event, dbDirectory) => {
+  
+  console.log("dir:",dbDirectory);
+  try {
+    // Check if the directory exists, if not, create it
+    if (!fs.existsSync(dbDirectory)) {
+      fs.mkdirSync(dbDirectory, { recursive: true });
+    }
+    // Send a confirmation back to the renderer process
+    
+    event.reply("folder-ready", true);
+  } catch (error) {
+    // Send an error back to the renderer process if directory creation failed
+    event.reply("folder-ready", false);
+    console.error("Error ensuring folder:", error);
+  }
+});

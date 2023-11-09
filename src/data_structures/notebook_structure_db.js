@@ -6,20 +6,39 @@
 const Datastore = require("nedb");
 const path = require("path");
 const notebook_id_db = require("./notebook_id_db");
+const { ipcRenderer } = require("electron");
 
 // Defining the notebook_structure_db class
 class notebook_structure_db {
   // Constructor for the notebook_structure_db class
   // It initializes the database based on the notebook name
   constructor(notebookName = "default_notebook") {
-    // Define the directory and filename for the database
-    const dbDirectory = path.join(__dirname, "../../database", notebookName);
+    // Define the directory where the database should be stored
+    const dbDirectory = path.join(__dirname, "/database", notebookName);
+
+    // Send a message to the main process to ensure the directory exists
+    ipcRenderer.send("ensure-folder", dbDirectory);
+
+    // Define the filename for the database
     const dbFilename = `structure.db`;
 
-    // Initialize the database
+    // Initialize the database with the filename
+    // Note: The database will not be loaded until the main process confirms the directory exists
     this.db = new Datastore({
       filename: path.join(dbDirectory, dbFilename),
-      autoload: true,
+      autoload: false, // Set autoload to false initially
+    });
+
+    // Listen for the main process to confirm the directory is ready
+    ipcRenderer.on("folder-ready", (event, success) => {
+      if (success ) {
+        // If the directory is ready, load the database
+        this.db.filename = path.join(dbDirectory, 'structure.db');
+        this.db.loadDatabase();
+      } else {
+        // Handle the error scenario, perhaps by notifying the user or logging
+        console.error("Failed to ensure database directory exists.");
+      }
     });
 
     // Initialize the id database
@@ -348,38 +367,40 @@ class notebook_structure_db {
   }
   deleteChild(id, childId) {
     return new Promise((resolve, reject) => {
-      this.find({ _id: childId }).then((childDocs) => {
-        if (childDocs.length === 0) {
-          resolve(0);
-          return;
-        }
-  
-        const childDoc = childDocs[0];
-        // Remove the document from the child's parent array
-        const updatedParents = childDoc.parent.filter((pid) => pid !== id);
-  
-        if (updatedParents.length === 0) {
-          // If it was the only parent, delete the child
-          this.delete(childId).then(resolve).catch(reject);
-        } else {
-          // If there are other parents, update the child's parent array
-          this.db.update(
-            { _id: childId },
-            { $set: { parent: updatedParents } },
-            {},
-            (err, numUpdated) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(numUpdated);
+      this.find({ _id: childId })
+        .then((childDocs) => {
+          if (childDocs.length === 0) {
+            resolve(0);
+            return;
+          }
+
+          const childDoc = childDocs[0];
+          // Remove the document from the child's parent array
+          const updatedParents = childDoc.parent.filter((pid) => pid !== id);
+
+          if (updatedParents.length === 0) {
+            // If it was the only parent, delete the child
+            this.delete(childId).then(resolve).catch(reject);
+          } else {
+            // If there are other parents, update the child's parent array
+            this.db.update(
+              { _id: childId },
+              { $set: { parent: updatedParents } },
+              {},
+              (err, numUpdated) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve(numUpdated);
+                }
               }
-            }
-          );
-        }
-      }).catch(reject);
+            );
+          }
+        })
+        .catch(reject);
     });
   }
-  
+
   deleteParent(id, parentId) {
     return new Promise((resolve, reject) => {
       this.find({ _id: id })
@@ -388,18 +409,18 @@ class notebook_structure_db {
             reject(new Error("Document not found"));
             return;
           }
-  
+
           const doc = docs[0];
-  
+
           // Check if the parentId is in the parent array
           if (!doc.parent.includes(parentId)) {
             resolve(0); // Parent ID not found, nothing to delete
             return;
           }
-  
+
           // Remove the parentId from the parent array
           const updatedParents = doc.parent.filter((pid) => pid !== parentId);
-  
+
           // Update the parent array of the document
           this.db.update(
             { _id: id },
@@ -420,9 +441,6 @@ class notebook_structure_db {
         .catch(reject);
     });
   }
-  
-
-
 }
 
 // Exporting the notebook_structure_db class as a module

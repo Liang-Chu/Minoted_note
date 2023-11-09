@@ -3,7 +3,7 @@ import "../../styles/style.css";
 import DisplayFolders from '../utils/DisplayFolders';
 import CurrentDirContext from '../../contexts/CurrentDirContext';
 import RootDirContext from '../../contexts/RootDirContext';
-import GetNamePrompt from '../modals/GetNamePrompt';
+import NamePrompts from '../modals/NamePrompts';
 import fs from 'fs'; // Import Node.js File System module
 
 function Home() {
@@ -32,7 +32,7 @@ function Home() {
   return (
     <div>
       <button onClick={() => setIsModalOpen(true)}>Create Notebook</button>
-      <GetNamePrompt
+      <NamePrompts
         isOpen={isModalOpen}
         onSubmit={createNotebook}
         onClose={() => setIsModalOpen(false)}

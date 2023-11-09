@@ -21,7 +21,8 @@ function DisplayFolders() {
   const [modalAction, setModalAction] = useState(null); // can be "addFolder", "addNote", "renameFolder", etc.
 
   const { currNotebook } = useContext(NotebookContext);
-  const scanDirectory = useScanDirectory(currNotebook);
+  const { directoryContents, loading, error, scanDirectory } = useScanDirectory();
+
   const [isModalOpen, setModalOpen] = useState(false);
   const [folderToRename, setFolderToRename] = useState(null);
   const [noteToRename, setNoteToRename] = useState(null);
